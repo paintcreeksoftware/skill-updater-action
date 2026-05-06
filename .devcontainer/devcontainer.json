@@ -7,7 +7,7 @@
     "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.config/gh,target=/home/node/.config/gh,type=bind,consistency=cached"
   ],
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "corepack enable && pnpm install",
   "customizations": {
     "codespaces": {
       "openFiles": ["README.md"]
