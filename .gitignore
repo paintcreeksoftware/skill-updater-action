@@ -5,6 +5,11 @@ node_modules
 # volume differs from the user home volume — common in devcontainers)
 .pnpm-store/
 
+# Claude Code per-developer state (permission allowlists, session caches).
+# Anything under .claude/ that should be shared across the team belongs in
+# .claude/agents/ etc. and can be re-included with !.claude/<path>/.
+.claude/
+
 # Rest pulled from https://github.com/github/gitignore/blob/master/Node.gitignore
 # Logs
 logs
