@@ -46,23 +46,29 @@ need to perform some initial setup steps before you can develop your action.
 > the correct version when you `cd` into the repository. Additionally, this
 > `.node-version` file is used by GitHub Actions in any `actions/setup-node`
 > actions.
+>
+> The package manager is [pnpm](https://pnpm.io), pinned via the
+> `packageManager` field in `package.json`. The simplest way to use the right
+> version is `corepack enable` (built into Node 20+) — the `pnpm` binary will
+> then bootstrap to the pinned version automatically when you run any `pnpm`
+> command in this directory.
 
 1. :hammer_and_wrench: Install the dependencies
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 1. :building_construction: Package the TypeScript for distribution
 
    ```bash
-   npm run bundle
+   pnpm bundle
    ```
 
 1. :white_check_mark: Run the tests
 
    ```bash
-   $ npm test
+   $ pnpm test
 
    PASS  ./index.test.js
      ✓ throws invalid number (3ms)
@@ -121,7 +127,7 @@ So, what are you waiting for? Go ahead and start customizing your action!
 1. Format, test, and build the action
 
    ```bash
-   npm run all
+   pnpm all
    ```
 
    > This step is important! It will run [`rollup`](https://rollupjs.org/) to
@@ -146,8 +152,8 @@ So, what are you waiting for? Go ahead and start customizing your action!
    - Terminal/Command Prompt
 
      ```bash
-     # npx @github/local action <action-yaml-path> <entrypoint> <dotenv-file>
-     npx @github/local-action . src/main.ts .env
+     # pnpm local-action <action-yaml-path> <entrypoint> <dotenv-file>
+     pnpm local-action . src/main.ts .env
      ```
 
    You can provide a `.env` file to the `local-action` CLI to set environment
