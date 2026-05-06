@@ -1,6 +1,10 @@
 # Dependency directory
 node_modules
 
+# pnpm content-addressable store (created in project root when the project's
+# volume differs from the user home volume — common in devcontainers)
+.pnpm-store/
+
 # Rest pulled from https://github.com/github/gitignore/blob/master/Node.gitignore
 # Logs
 logs

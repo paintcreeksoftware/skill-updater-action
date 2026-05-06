@@ -1,6 +1,8 @@
 .DS_Store
 .licenses/
 .devcontainer/devcontainer-lock.json
+.pnpm-store/
 dist/
 node_modules/
 coverage/
+pnpm-lock.yaml
