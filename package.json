@@ -34,6 +34,7 @@
     "local-action": "local-action . src/main.ts .env",
     "package": "rimraf ./dist && rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "package:watch": "pnpm package -- --watch",
+    "prepare": "husky",
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest",
     "all": "pnpm format:write && pnpm lint && pnpm test && pnpm coverage && pnpm package"
   },
@@ -59,11 +60,12 @@
     "eslint-plugin-jest": "^29.15.2",
     "eslint-plugin-prettier": "^5.5.5",
     "globals": "^16.5.0",
+    "husky": "^9.1.7",
     "jest": "^30.3.0",
     "make-coverage-badge": "^1.2.0",
     "prettier": "^3.8.3",
-    "rollup": "^4.60.3",
     "rimraf": "^6.0.1",
+    "rollup": "^4.60.3",
     "ts-jest": "^29.4.9",
     "ts-jest-resolver": "^2.0.1",
     "typescript": "^6.0.3"
