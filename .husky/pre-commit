@@ -1,0 +1,49 @@
+set -e
+
+# devcontainer-lock.json must move in lockstep with devcontainer.json. If the
+# JSON is staged but the lock has unstaged changes, you almost certainly
+# rebuilt the container and forgot to `git add` the regenerated lock.
+if git diff --cached --name-only | grep -qE '^\.devcontainer/devcontainer\.json$'; then
+  lock=.devcontainer/devcontainer-lock.json
+  if ! git diff --cached --name-only | grep -qE "^${lock}$"; then
+    if [ -f "$lock" ] && ! git diff --quiet -- "$lock"; then
+      echo "ERROR: devcontainer.json is staged but $lock has unstaged changes."
+      echo "Stage the lock alongside the JSON:"
+      echo "  git add $lock"
+      exit 1
+    fi
+  fi
+fi
+
+# Reject commits whose net reviewable churn exceeds the project's hard cap.
+# Soft target is 50 lines; hard cap is 100. Generated/lock files are excluded
+# because they legitimately produce large churn that has nothing to do with the
+# reviewable LOC of the change. Bypass via ALLOW_BIG_COMMIT=1 for the rare
+# irreducible commit (large rename, generated file). Run before lint/test so a
+# too-big commit fails fast without burning the full hook budget.
+if [ "${ALLOW_BIG_COMMIT:-0}" != "1" ]; then
+  cap=100
+  staged=$(git diff --cached --name-only --diff-filter=ACMR \
+    | grep -vE '^(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|\.devcontainer/devcontainer-lock\.json|dist/index\.js|dist/index\.js\.map|badges/coverage\.svg)$' \
+    || true)
+  if [ -n "$staged" ]; then
+    # shellcheck disable=SC2086 # word-splitting is intentional — feed each path as a separate arg
+    stat=$(git diff --cached --shortstat -- $staged)
+    inserts=$(echo "$stat" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo 0)
+    deletes=$(echo "$stat" | grep -oE '[0-9]+ deletion'  | grep -oE '[0-9]+' || echo 0)
+    total=$((inserts + deletes))
+    if [ "$total" -gt "$cap" ]; then
+      echo "ERROR: commit is ${total} lines (insertions+deletions, generated files excluded). Hard cap is ${cap}."
+      echo "Soft target is 50 lines; split this commit along its semantic seams."
+      echo ""
+      echo "If this is genuinely irreducible (large rename, generated file,"
+      echo "etc.), bypass with:"
+      echo "  ALLOW_BIG_COMMIT=1 git commit ..."
+      exit 1
+    fi
+  fi
+fi
+
+pnpm format:check
+pnpm lint
+pnpm test
