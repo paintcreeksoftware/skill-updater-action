@@ -1,6 +1,12 @@
 {
-  "name": "GitHub Actions (TypeScript)",
+  "name": "Skill Updater Action",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "mounts": [
+    "source=${localEnv:HOME}/.gitconfig,target=/home/node/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.config/gh,target=/home/node/.config/gh,type=bind,consistency=cached"
+  ],
   "postCreateCommand": "npm install",
   "customizations": {
     "codespaces": {
@@ -34,7 +40,10 @@
     "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
   },
   "features": {
+    // Important for Claude to push up pull requests to GitHub.
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers-community/npm-features/prettier:1": {}
+    "ghcr.io/devcontainers-community/npm-features/prettier:1": {},
+    // Install Claude Code.
+    "ghcr.io/devcontainers-extra/features/claude-code:1": {}
   }
 }
