@@ -3,8 +3,10 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 const list = jest.fn<(args: unknown) => Promise<unknown>>()
 const update = jest.fn<(args: unknown) => Promise<unknown>>()
 const create = jest.fn<(args: unknown) => Promise<unknown>>()
+const graphql = jest.fn<(query: string, vars: unknown) => Promise<unknown>>()
+const warning = jest.fn<(msg: string) => void>()
 
-const octokit = { rest: { pulls: { list, update, create } } }
+const octokit = { rest: { pulls: { list, update, create } }, graphql }
 const getOctokit = jest.fn<() => typeof octokit>()
 
 jest.unstable_mockModule('@actions/github', () => ({
@@ -13,8 +15,10 @@ jest.unstable_mockModule('@actions/github', () => ({
     repo: { owner: 'paintcreeksoftware', repo: 'skill-updater-action' }
   }
 }))
+jest.unstable_mockModule('@actions/core', () => ({ warning }))
 
-const { ensurePullRequest } = await import('../../src/git/pr.js')
+const { ensurePullRequest, tryEnableAutoMerge } =
+  await import('../../src/git/pr.js')
 
 const baseInput = {
   token: 't',
@@ -77,5 +81,27 @@ describe('ensurePullRequest', () => {
     })
     expect(update).not.toHaveBeenCalled()
     expect(out.number).toBe(7)
+  })
+})
+
+describe('tryEnableAutoMerge', () => {
+  it('issues the GraphQL mutation with the PR node id', async () => {
+    graphql.mockResolvedValueOnce({})
+    await tryEnableAutoMerge('t', 'PR_42')
+    expect(graphql).toHaveBeenCalledWith(
+      expect.stringContaining('enablePullRequestAutoMerge'),
+      { pullRequestId: 'PR_42' }
+    )
+  })
+
+  it('logs core.warning and swallows GraphQL errors (best-effort)', async () => {
+    graphql.mockRejectedValueOnce(new Error('auto-merge not enabled in repo'))
+    await tryEnableAutoMerge('t', 'PR_42')
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining('failed to enable auto-merge')
+    )
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining('auto-merge not enabled in repo')
+    )
   })
 })

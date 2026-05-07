@@ -1,4 +1,34 @@
+import * as core from '@actions/core'
 import { context, getOctokit } from '@actions/github'
+import { formatError } from '../util/logger.js'
+
+const ENABLE_AUTO_MERGE_GQL = `mutation($pullRequestId: ID!) {
+  enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) {
+    pullRequest { id }
+  }
+}`
+
+/**
+ * Best-effort GraphQL `enablePullRequestAutoMerge` (SQUASH method). Failure
+ * is logged via core.warning and swallowed — the PR stays open and the
+ * consumer's own merge mechanism (manual review, Mergify, repo settings)
+ * takes over.
+ */
+export async function tryEnableAutoMerge(
+  token: string,
+  pullRequestNodeId: string
+): Promise<void> {
+  const octokit = getOctokit(token)
+  try {
+    await octokit.graphql(ENABLE_AUTO_MERGE_GQL, {
+      pullRequestId: pullRequestNodeId
+    })
+  } catch (err) {
+    core.warning(
+      formatError('failed to enable auto-merge (PR remains open)', err)
+    )
+  }
+}
 
 export interface PrInput {
   readonly token: string
