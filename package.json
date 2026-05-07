@@ -40,7 +40,9 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^3.0.1"
+    "@actions/core": "^3.0.1",
+    "yaml": "^2.8.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.5",
