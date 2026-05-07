@@ -9,6 +9,7 @@ import { ensurePullRequest, tryEnableAutoMerge } from './git/pr.js'
 import { findRepoRoot } from './git/workspace.js'
 import { writeSkill, type WriteResult } from './output/writer.js'
 import { fetchSource } from './sources/fetcher.js'
+import { estimateCost, sumUsage } from './synthesis/pricing.js'
 import { synthesize, type SynthesisResult } from './synthesis/synthesize.js'
 import { formatError } from './util/logger.js'
 
@@ -59,9 +60,7 @@ export async function run(): Promise<void> {
 
     const base = defaultBranch()
     const message = 'chore(skill): refresh skills from upstream sources'
-    const body = changedRuns
-      .map((r) => `### ${r.skillName}\n\n${r.result.summary}\n`)
-      .join('\n')
+    const body = formatPrBody(changedRuns, inputs.model)
     const allFiles = changedRuns.flatMap((r) => r.write.changedFiles)
 
     await resetRollingBranch(inputs.branch, base, repoRoot)
@@ -87,6 +86,30 @@ function defaultBranch(): string {
     (context.payload.repository as { default_branch?: string } | undefined)
       ?.default_branch ?? 'main'
   )
+}
+
+const ZERO_USAGE = {
+  input_tokens: 0,
+  cache_creation_input_tokens: 0,
+  cache_read_input_tokens: 0,
+  output_tokens: 0,
+  service_tier: 'standard'
+}
+
+function formatPrBody(runs: readonly PerSkillRun[], model: string): string {
+  const sections = runs
+    .map((r) => `### ${r.skillName}\n\n${r.result.summary}\n`)
+    .join('\n')
+  const total = runs.reduce(
+    (acc, r) => sumUsage(acc, r.result.usage),
+    ZERO_USAGE
+  )
+  const cost = estimateCost(model, total)
+  const costLine =
+    cost === undefined
+      ? `Token usage: in ${total.input_tokens} / cache+ ${total.cache_creation_input_tokens} / cache- ${total.cache_read_input_tokens} / out ${total.output_tokens}. Cost not computed (unknown model: ${model}).`
+      : `Estimated cost (${model}): $${cost.toFixed(4)}. Tokens: in ${total.input_tokens} / cache+ ${total.cache_creation_input_tokens} / cache- ${total.cache_read_input_tokens} / out ${total.output_tokens}.`
+  return `${sections}\n## Cost summary\n\n${costLine}\n`
 }
 
 async function readPriorContent(

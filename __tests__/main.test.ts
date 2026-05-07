@@ -141,4 +141,24 @@ describe('main.ts (orchestrator)', () => {
     expect(core.setOutput).toHaveBeenCalledWith('pr-url', 'https://gh/pr/9')
     expect(core.setFailed).not.toHaveBeenCalled()
   })
+
+  it('includes a Cost summary section in the PR body', async () => {
+    parseInputs.mockReturnValue(inputs)
+    discoverSkills.mockResolvedValue([skill])
+    writeSkill.mockResolvedValue({
+      changed: true,
+      changedFiles: ['/repo/SKILL.md']
+    })
+    ensurePullRequest.mockResolvedValue({
+      url: 'https://gh/pr/9',
+      number: 9,
+      nodeId: 'PR_9'
+    })
+    await run()
+    const body = ensurePullRequest.mock.calls[0][0].body
+    expect(body).toContain('## Cost summary')
+    expect(body).toContain('Estimated cost (claude-opus-4-7)')
+    expect(body).toContain('### foo')
+    expect(body).toContain('fresh') // synthesis summary
+  })
 })
