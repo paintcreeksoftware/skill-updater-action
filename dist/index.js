@@ -74141,7 +74141,8 @@ function sumUsage(a, b) {
     return {
         ...a,
         input_tokens: a.input_tokens + b.input_tokens,
-        cache_creation_input_tokens: (a.cache_creation_input_tokens ?? 0) + (b.cache_creation_input_tokens ?? 0),
+        cache_creation_input_tokens: (a.cache_creation_input_tokens ?? 0) +
+            (b.cache_creation_input_tokens ?? 0),
         cache_read_input_tokens: (a.cache_read_input_tokens ?? 0) + (b.cache_read_input_tokens ?? 0),
         output_tokens: a.output_tokens + b.output_tokens
     };

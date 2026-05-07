@@ -8,24 +8,25 @@
 
 A GitHub Action that keeps the
 [Claude SKILL.md](https://docs.anthropic.com/en/docs/agents/skills) files in
-your skill repo fresh against upstream sources (web pages, public git repos, RSS
-feeds). On each run, the action:
+your skill repository fresh against upstream sources (web pages, public Git
+repositories, RSS feeds). On each run, the action:
 
-1. Discovers every `SKILL.md` in the consumer repo (auto-detect — no manual
-   layout config).
-2. Fetches the configured upstream sources for each skill named in the workflow
+1. Discovers every `SKILL.md` in the consumer repository (auto-detect — no
+   manual layout config).
+1. Fetches the configured upstream sources for each skill named in the workflow
    input.
-3. Calls the [Claude API](https://docs.anthropic.com/en/api/) to synthesize
+1. Calls the [Claude API](https://docs.anthropic.com/en/api/) to synthesize
    updated content from prior SKILL.md + the fresh sources, with prompt caching
    wired so reruns and cross-skill calls are cheap.
-4. Writes the updated `SKILL.md` (and bumps a colocated `marketplace.json` patch
+1. Writes the updated `SKILL.md` (and bumps a colocated `marketplace.json` patch
    version, if present).
-5. Opens or updates a single rolling pull request with all changed skills + a
+1. Opens or updates a single rolling pull request with all changed skills + a
    token-cost summary, and best-effort enables GitHub auto-merge.
 
-**v1 updates existing skills only.** A `SKILL.md` must already exist in the repo
-for the action to find it. Bootstrapping new skills from sources alone is on the
-roadmap (see [PAI-122](https://linear.app/paint-creek-software/issue/PAI-122)).
+**v1 updates existing skills only.** A `SKILL.md` must already exist in the
+repository for the action to find it. Bootstrapping new skills from sources
+alone is on the roadmap (see
+[PAI-122](https://linear.app/paint-creek-software/issue/PAI-122)).
 
 ## Quick example
 
@@ -71,7 +72,7 @@ jobs:
 
 | name                | required | default              | description                                                                                                                                                                           |
 | ------------------- | -------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sources`           | yes      | —                    | Multi-line YAML map of skill name → list of sources (see below). Names must match a discovered `SKILL.md` location in the repo.                                                       |
+| `sources`           | yes      | —                    | Multi-line YAML map of skill name → list of sources (see below). Names must match a discovered `SKILL.md` location in the repository.                                                 |
 | `anthropic-api-key` | yes      | —                    | Anthropic API key for synthesis.                                                                                                                                                      |
 | `github-token`      | yes      | —                    | Fine-grained PAT or GitHub App installation token. **Not** the default `GITHUB_TOKEN` (see next section).                                                                             |
 | `model`             | no       | `claude-opus-4-7`    | Claude model ID. Cost reporting prices `claude-opus-4-7`, `claude-sonnet-4-6`, and `claude-haiku-4-5-20251001`; unknown models still run but the cost column shows token counts only. |
@@ -86,7 +87,7 @@ sources: |
       url: https://...           # required
     - type: git
       url: https://...           # required
-      ref: <branch-or-tag>       # optional (defaults to repo default)
+      ref: <branch-or-tag>       # optional (defaults to repository default)
       paths: ['glob/**']         # optional (defaults to ['README.md'])
     - type: rss
       url: https://.../feed.xml  # required
@@ -95,7 +96,7 @@ sources: |
 
 A skill name in `sources` that doesn't match any discovered `SKILL.md` is a
 fail-fast error at startup — no fetches, no Claude calls. Skills discovered in
-the repo with no matching `sources` entry are silently skipped.
+the repository with no matching `sources` entry are silently skipped.
 
 ## Output
 
@@ -115,13 +116,13 @@ action:
 
 1. Required status checks (CI) won't run on the PR, so reviewers can't see test
    results before merging.
-2. GitHub auto-merge waits for required checks; with no checks running,
+1. GitHub auto-merge waits for required checks; with no checks running,
    auto-merge blocks forever.
 
 A fine-grained PAT (or a GitHub App installation token) bypasses the safeguard.
-The PAT needs `contents: write` and `pull-requests: write` on the consumer repo.
-Store it as a repository secret named `GITHUB_PERSONAL_ACCESS_TOKEN` and pass it
-via `github-token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}`.
+The PAT needs `contents: write` and `pull-requests: write` on the consumer
+repository. Store it as a repository secret named `GITHUB_PERSONAL_ACCESS_TOKEN`
+and pass it via `github-token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}`.
 
 The action will refuse to start if `github-token` is empty or matches the
 default `GITHUB_TOKEN` — fail-fast, no silent fallback.
@@ -136,7 +137,7 @@ default `GITHUB_TOKEN` — fail-fast, no silent fallback.
 | ✅  | Preserve deprecated APIs as "what NOT to use" instructions per the synthesis prompt |
 | ❌  | Bootstrap brand-new skills (a SKILL.md must already exist) — see roadmap            |
 | ❌  | OpenClaw / custom output formats — out of scope for v1                              |
-| ❌  | Modify your repo's git config or write to `~/.gitconfig`                            |
+| ❌  | Modify your repository's Git config or write to `~/.gitconfig`                      |
 
 ## Development
 
