@@ -84,3 +84,47 @@ describe('fetchGit (happy path)', () => {
     expect(docs[0].fetchedAt).toBeInstanceOf(Date)
   })
 })
+
+describe('fetchGit (edge cases)', () => {
+  it('honors explicit `paths` patterns with multiple matches', async () => {
+    await pushFiles({
+      'README.md': 'root readme',
+      'docs/intro.md': 'intro',
+      'docs/api/endpoints.md': 'endpoints',
+      'src/index.ts': 'export {}'
+    })
+
+    const docs = await fetchGit(upstream, 'main', ['docs/**/*.md'])
+    const byPath = Object.fromEntries(
+      docs.map((d) => [d.sourceUrl.split(':').slice(-1)[0], d.body])
+    )
+
+    expect(Object.keys(byPath).sort()).toEqual([
+      'docs/api/endpoints.md',
+      'docs/intro.md'
+    ])
+    expect(byPath['docs/intro.md']).toBe('intro')
+    expect(byPath['docs/api/endpoints.md']).toBe('endpoints')
+  })
+
+  it('uses HEAD in sourceUrl when ref is omitted (still passes --depth 1)', async () => {
+    await pushFiles({ 'README.md': 'no-ref readme' })
+
+    const docs = await fetchGit(upstream)
+
+    expect(docs).toHaveLength(1)
+    expect(docs[0].sourceUrl).toBe(`${upstream}#HEAD:README.md`)
+  })
+
+  it('rethrows clone failures (and the finally still runs without crashing)', async () => {
+    const bogus = path.join(workspace, 'does-not-exist')
+    await expect(fetchGit(bogus, 'main')).rejects.toThrow()
+  })
+
+  it('returns an empty array when no files match the paths glob', async () => {
+    await pushFiles({ 'README.md': 'root readme' })
+
+    const docs = await fetchGit(upstream, 'main', ['docs/**/*.md'])
+    expect(docs).toEqual([])
+  })
+})
