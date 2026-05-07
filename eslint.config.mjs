@@ -45,20 +45,12 @@ export default [
       sourceType: 'module',
 
       parserOptions: {
-        projectService: {
-          allowDefaultProject: [
-            '__fixtures__/*.ts',
-            '__tests__/*.ts',
-            // typescript-eslint disallows `**` in this list (perf concern), so
-            // each new test subdir gets its own glob entry as it lands. Adds
-            // for PAI-N tickets:
-            '__tests__/config/*.ts', // PAI-124
-            '__tests__/discovery/*.ts', // PAI-125
-            'eslint.config.mjs',
-            'jest.config.js',
-            'rollup.config.ts'
-          ]
-        },
+        // tsconfig.eslint.json includes src + __tests__ + __fixtures__ + the
+        // root-level config files. Using a dedicated lint tsconfig (rather
+        // than allowDefaultProject) avoids the typescript-eslint 8-file cap
+        // on the default project that triggered as the test suite grew past
+        // a handful of files.
+        project: './tsconfig.eslint.json',
         tsconfigRootDir: import.meta.dirname
       }
     },
