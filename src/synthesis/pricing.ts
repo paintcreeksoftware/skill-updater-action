@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { Anthropic } from '@anthropic-ai/sdk'
 
 /** USD-per-million-tokens for each model dimension we charge against. */
 interface ModelPrice {
@@ -42,30 +42,31 @@ const PRICING: Record<string, ModelPrice> = {
  */
 export function estimateCost(
   model: string,
-  usage: Anthropic.Messages.Usage
+  usage: Anthropic.Usage
 ): number | undefined {
   const price = PRICING[model]
   if (price === undefined) return undefined
   const millionsCost =
     usage.input_tokens * price.input +
-    usage.cache_creation_input_tokens * price.cacheCreate +
-    usage.cache_read_input_tokens * price.cacheRead +
+    (usage.cache_creation_input_tokens ?? 0) * price.cacheCreate +
+    (usage.cache_read_input_tokens ?? 0) * price.cacheRead +
     usage.output_tokens * price.output
   return millionsCost / 1_000_000
 }
 
-/** Sum two usage records field-by-field. */
+/** Sum two usage records field-by-field, treating nullable token fields as 0. */
 export function sumUsage(
-  a: Anthropic.Messages.Usage,
-  b: Anthropic.Messages.Usage
-): Anthropic.Messages.Usage {
+  a: Anthropic.Usage,
+  b: Anthropic.Usage
+): Anthropic.Usage {
   return {
     ...a,
     input_tokens: a.input_tokens + b.input_tokens,
     cache_creation_input_tokens:
-      a.cache_creation_input_tokens + b.cache_creation_input_tokens,
+      (a.cache_creation_input_tokens ?? 0) +
+      (b.cache_creation_input_tokens ?? 0),
     cache_read_input_tokens:
-      a.cache_read_input_tokens + b.cache_read_input_tokens,
+      (a.cache_read_input_tokens ?? 0) + (b.cache_read_input_tokens ?? 0),
     output_tokens: a.output_tokens + b.output_tokens
   }
 }

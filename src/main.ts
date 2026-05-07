@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import { context } from '@actions/github'
+import type { Anthropic } from '@anthropic-ai/sdk'
 import { readFile } from 'node:fs/promises'
 import { parseInputs } from './config/inputs.js'
 import { discoverSkills, type DiscoveredSkill } from './discovery/skills.js'
@@ -88,11 +89,14 @@ function defaultBranch(): string {
   )
 }
 
-const ZERO_USAGE = {
-  input_tokens: 0,
+const ZERO_USAGE: Anthropic.Usage = {
+  cache_creation: null,
   cache_creation_input_tokens: 0,
   cache_read_input_tokens: 0,
+  inference_geo: null,
+  input_tokens: 0,
   output_tokens: 0,
+  server_tool_use: null,
   service_tier: 'standard'
 }
 
@@ -107,8 +111,8 @@ function formatPrBody(runs: readonly PerSkillRun[], model: string): string {
   const cost = estimateCost(model, total)
   const costLine =
     cost === undefined
-      ? `Token usage: in ${total.input_tokens} / cache+ ${total.cache_creation_input_tokens} / cache- ${total.cache_read_input_tokens} / out ${total.output_tokens}. Cost not computed (unknown model: ${model}).`
-      : `Estimated cost (${model}): $${cost.toFixed(4)}. Tokens: in ${total.input_tokens} / cache+ ${total.cache_creation_input_tokens} / cache- ${total.cache_read_input_tokens} / out ${total.output_tokens}.`
+      ? `Token usage: in ${total.input_tokens} / cache+ ${total.cache_creation_input_tokens ?? 0} / cache- ${total.cache_read_input_tokens ?? 0} / out ${total.output_tokens}. Cost not computed (unknown model: ${model}).`
+      : `Estimated cost (${model}): $${cost.toFixed(4)}. Tokens: in ${total.input_tokens} / cache+ ${total.cache_creation_input_tokens ?? 0} / cache- ${total.cache_read_input_tokens ?? 0} / out ${total.output_tokens}.`
   return `${sections}\n## Cost summary\n\n${costLine}\n`
 }
 
