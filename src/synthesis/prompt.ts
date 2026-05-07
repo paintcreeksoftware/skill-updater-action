@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { Anthropic } from '@anthropic-ai/sdk'
 import type { FetchedDocument } from '../sources/types.js'
 import { SYSTEM_PROMPT } from './skillSpec.js'
 
@@ -8,7 +8,7 @@ import { SYSTEM_PROMPT } from './skillSpec.js'
  * model/max_tokens/etc. are the client wrapper's concern.
  */
 export type BuiltPrompt = Pick<
-  Anthropic.Messages.MessageCreateParams,
+  Anthropic.MessageCreateParams,
   'system' | 'messages'
 >
 

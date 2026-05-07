@@ -1,4 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk'
+import AnthropicClient from '@anthropic-ai/sdk'
+import type { Anthropic } from '@anthropic-ai/sdk'
 import type { BuiltPrompt } from './prompt.js'
 
 /**
@@ -19,7 +20,7 @@ export interface ClientCallInput extends BuiltPrompt {
 }
 
 /** Pass-through of the SDK's response shape. */
-export type ClientCallResult = Anthropic.Messages.Message
+export type ClientCallResult = Anthropic.Message
 
 /**
  * Issue one synthesis call against the Anthropic Messages API. SDK retries
@@ -30,7 +31,7 @@ export type ClientCallResult = Anthropic.Messages.Message
 export async function callClaude(
   input: ClientCallInput
 ): Promise<ClientCallResult> {
-  const client = new Anthropic({ apiKey: input.apiKey })
+  const client = new AnthropicClient({ apiKey: input.apiKey })
   return client.messages.create({
     model: input.model,
     max_tokens: DEFAULT_MAX_TOKENS,

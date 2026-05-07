@@ -10,6 +10,11 @@ node_modules
 # .claude/agents/ etc. and can be re-included with !.claude/<path>/.
 .claude/
 
+# Rollup temporary compiled config (created when --configPlugin compiles
+# rollup.config.ts; usually cleaned up automatically but lingers if the
+# build crashes mid-run).
+rollup.config-*.mjs
+
 # Rest pulled from https://github.com/github/gitignore/blob/master/Node.gitignore
 # Logs
 logs

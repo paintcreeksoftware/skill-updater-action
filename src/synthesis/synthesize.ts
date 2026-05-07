@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { Anthropic } from '@anthropic-ai/sdk'
 import type { FetchedDocument } from '../sources/types.js'
 import { callClaude } from './client.js'
 import { buildPrompt } from './prompt.js'
@@ -20,7 +20,7 @@ export interface SynthesisResult {
   readonly skillMd: string
   readonly marketplaceJson: Record<string, unknown> | null
   readonly summary: string
-  readonly usage: Anthropic.Messages.Usage
+  readonly usage: Anthropic.Usage
 }
 
 /**
@@ -46,9 +46,9 @@ export async function synthesize(
 }
 
 /** Concatenate the response's text blocks; ignore non-text blocks. */
-function extractText(response: Anthropic.Messages.Message): string {
+function extractText(response: Anthropic.Message): string {
   return response.content
-    .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('')
     .trim()
