@@ -53,6 +53,7 @@ export default [
             // each new test subdir gets its own glob entry as it lands. Adds
             // for PAI-N tickets:
             '__tests__/config/*.ts', // PAI-124
+            '__tests__/discovery/*.ts', // PAI-125
             'eslint.config.mjs',
             'jest.config.js',
             'rollup.config.ts'
