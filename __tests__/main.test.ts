@@ -6,6 +6,15 @@ import type { DiscoveredSkill } from '../src/discovery/skills.js'
 import type { fetchSource as FetchSource } from '../src/sources/fetcher.js'
 import type { synthesize as Synthesize } from '../src/synthesis/synthesize.js'
 import type { writeSkill as WriteSkill } from '../src/output/writer.js'
+import type { resetRollingBranch as ResetBranch } from '../src/git/branch.js'
+import type {
+  commitChanges as CommitChanges,
+  pushBranch as PushBranch
+} from '../src/git/commit.js'
+import type {
+  ensurePullRequest as EnsurePr,
+  tryEnableAutoMerge as TryAutoMerge
+} from '../src/git/pr.js'
 
 const parseInputs = jest.fn<() => ParsedInputs>()
 const discoverSkills = jest.fn<(root: string) => Promise<DiscoveredSkill[]>>()
@@ -14,6 +23,11 @@ const fetchSource = jest.fn<typeof FetchSource>()
 const synthesize = jest.fn<typeof Synthesize>()
 const writeSkill = jest.fn<typeof WriteSkill>()
 const readFile = jest.fn<(path: string, enc?: string) => Promise<string>>()
+const resetRollingBranch = jest.fn<typeof ResetBranch>()
+const commitChanges = jest.fn<typeof CommitChanges>()
+const pushBranch = jest.fn<typeof PushBranch>()
+const ensurePullRequest = jest.fn<typeof EnsurePr>()
+const tryEnableAutoMerge = jest.fn<typeof TryAutoMerge>()
 
 jest.unstable_mockModule('@actions/core', () => core)
 jest.unstable_mockModule('../src/config/inputs.js', () => ({ parseInputs }))
@@ -27,6 +41,18 @@ jest.unstable_mockModule('../src/synthesis/synthesize.js', () => ({
 }))
 jest.unstable_mockModule('../src/output/writer.js', () => ({ writeSkill }))
 jest.unstable_mockModule('node:fs/promises', () => ({ readFile }))
+jest.unstable_mockModule('../src/git/branch.js', () => ({ resetRollingBranch }))
+jest.unstable_mockModule('../src/git/commit.js', () => ({
+  commitChanges,
+  pushBranch
+}))
+jest.unstable_mockModule('../src/git/pr.js', () => ({
+  ensurePullRequest,
+  tryEnableAutoMerge
+}))
+jest.unstable_mockModule('@actions/github', () => ({
+  context: { payload: { repository: { default_branch: 'main' } } }
+}))
 
 const { run } = await import('../src/main.js')
 
@@ -87,16 +113,32 @@ describe('main.ts (orchestrator)', () => {
     expect(core.setFailed).not.toHaveBeenCalled()
   })
 
-  it('falls through to the PR-pipeline sentinel when at least one skill changed', async () => {
+  it('runs the full PR pipeline and sets pr-url when at least one skill changed', async () => {
     parseInputs.mockReturnValue(inputs)
     discoverSkills.mockResolvedValue([skill])
     writeSkill.mockResolvedValue({
       changed: true,
       changedFiles: ['/repo/SKILL.md']
     })
+    ensurePullRequest.mockResolvedValue({
+      url: 'https://gh/pr/9',
+      number: 9,
+      nodeId: 'PR_9'
+    })
     await run()
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining('PR pipeline not yet wired')
+    expect(resetRollingBranch).toHaveBeenCalledWith(
+      'skill-updater/auto',
+      'main',
+      '/repo'
     )
+    expect(commitChanges).toHaveBeenCalledWith({
+      cwd: '/repo',
+      files: ['/repo/SKILL.md'],
+      message: 'chore(skill): refresh skills from upstream sources'
+    })
+    expect(pushBranch).toHaveBeenCalledWith('skill-updater/auto', '/repo')
+    expect(tryEnableAutoMerge).toHaveBeenCalledWith('gh', 'PR_9')
+    expect(core.setOutput).toHaveBeenCalledWith('pr-url', 'https://gh/pr/9')
+    expect(core.setFailed).not.toHaveBeenCalled()
   })
 })

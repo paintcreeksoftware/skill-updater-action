@@ -1,7 +1,11 @@
 import * as core from '@actions/core'
+import { context } from '@actions/github'
 import { readFile } from 'node:fs/promises'
 import { parseInputs } from './config/inputs.js'
 import { discoverSkills, type DiscoveredSkill } from './discovery/skills.js'
+import { resetRollingBranch } from './git/branch.js'
+import { commitChanges, pushBranch } from './git/commit.js'
+import { ensurePullRequest, tryEnableAutoMerge } from './git/pr.js'
 import { findRepoRoot } from './git/workspace.js'
 import { writeSkill, type WriteResult } from './output/writer.js'
 import { fetchSource } from './sources/fetcher.js'
@@ -53,12 +57,36 @@ export async function run(): Promise<void> {
       return
     }
 
-    core.setFailed(
-      'skill-updater-action: PR pipeline not yet wired (PAI-129 in progress).'
-    )
+    const base = defaultBranch()
+    const message = 'chore(skill): refresh skills from upstream sources'
+    const body = changedRuns
+      .map((r) => `### ${r.skillName}\n\n${r.result.summary}\n`)
+      .join('\n')
+    const allFiles = changedRuns.flatMap((r) => r.write.changedFiles)
+
+    await resetRollingBranch(inputs.branch, base, repoRoot)
+    await commitChanges({ cwd: repoRoot, files: allFiles, message })
+    await pushBranch(inputs.branch, repoRoot)
+    const pr = await ensurePullRequest({
+      token: inputs.githubToken,
+      branch: inputs.branch,
+      base,
+      title: message,
+      body
+    })
+    await tryEnableAutoMerge(inputs.githubToken, pr.nodeId)
+
+    core.setOutput('pr-url', pr.url)
   } catch (err) {
     core.setFailed(formatError('skill-updater-action failed', err))
   }
+}
+
+function defaultBranch(): string {
+  return (
+    (context.payload.repository as { default_branch?: string } | undefined)
+      ?.default_branch ?? 'main'
+  )
 }
 
 async function readPriorContent(
