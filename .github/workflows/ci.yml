@@ -48,21 +48,9 @@ jobs:
         id: ci-test
         run: pnpm ci-test
 
-  test-action:
-    name: GitHub Actions Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v6
-
-      - name: Test Local Action
-        id: test-action
-        uses: ./
-        with:
-          milliseconds: 2000
-
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+  # The hello-world template's "GitHub Actions Test" smoke job is removed in
+  # PAI-123 because the new stub run() unconditionally fails (and the old
+  # `milliseconds: 2000` input no longer exists). PAI-129 (orchestrator)
+  # re-adds a smoke job that wires the real `sources` input + a stub
+  # ANTHROPIC_API_KEY against a fixture skill and asserts the action runs
+  # end-to-end.

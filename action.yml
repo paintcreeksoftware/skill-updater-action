@@ -1,23 +1,16 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: Skill Updater
+description:
+  Pull upstream sources and use the Claude API to keep Claude skill repos
+  auto-updated, opening a single rolling PR per run.
+author: Paint Creek Software
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: heart
-  color: red
+  icon: refresh-cw
+  color: blue
 
-# Define your inputs here.
-inputs:
-  milliseconds:
-    description: Your input description here
-    required: true
-    default: '1000'
-
-# Define your outputs here.
-outputs:
-  time:
-    description: Your output description here
+# Inputs and outputs land in PAI-124 (input schema) and PAI-129 (orchestrator
+# wires the pr-url output). This stub deliberately exposes none — running the
+# action today fails fast with a "not implemented" message via setFailed.
 
 runs:
   using: node24
