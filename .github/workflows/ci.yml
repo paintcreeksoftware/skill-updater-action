@@ -48,6 +48,15 @@ jobs:
         id: ci-test
         run: pnpm ci-test
 
+      - name: Upload Coverage Report
+        id: upload-coverage
+        if: always() && hashFiles('coverage/lcov-report/**') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/lcov-report/
+          retention-days: 14
+
   # The hello-world template's "GitHub Actions Test" smoke job is removed in
   # PAI-123 because the new stub run() unconditionally fails (and the old
   # `milliseconds: 2000` input no longer exists). PAI-129 (orchestrator)
