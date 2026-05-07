@@ -1,15 +1,22 @@
 /**
  * Unit tests for src/sources/fetcher.ts.
  *
- * The web fetcher is mocked at the module boundary; these tests assert the
- * dispatcher calls the right per-type fetcher and surfaces the
- * not-yet-implemented errors for git/rss until PAI-127 fills them in.
+ * All three per-type fetchers are mocked at the module boundary so this
+ * suite stays focused on the dispatcher's switch behavior — the per-fetcher
+ * suites (web/git/rss) cover their own internals.
  */
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { fetchWeb as FetchWeb } from '../../src/sources/web.js'
+import type { fetchGit as FetchGit } from '../../src/sources/git.js'
+import type { fetchRss as FetchRss } from '../../src/sources/rss.js'
 
 const fetchWeb = jest.fn<typeof FetchWeb>()
+const fetchGit = jest.fn<typeof FetchGit>()
+const fetchRss = jest.fn<typeof FetchRss>()
+
 jest.unstable_mockModule('../../src/sources/web.js', () => ({ fetchWeb }))
+jest.unstable_mockModule('../../src/sources/git.js', () => ({ fetchGit }))
+jest.unstable_mockModule('../../src/sources/rss.js', () => ({ fetchRss }))
 
 const { fetchSource } = await import('../../src/sources/fetcher.js')
 
@@ -33,15 +40,41 @@ describe('fetchSource', () => {
     expect(out).toEqual([doc])
   })
 
-  it('throws NotImplemented for git sources (PAI-127 lands the fetcher)', async () => {
-    await expect(
-      fetchSource({ type: 'git', url: 'https://github.com/x/y.git' })
-    ).rejects.toThrow(/git.*not yet implemented.*PAI-127/)
+  it('forwards ref and paths when dispatching a git source', async () => {
+    fetchGit.mockResolvedValueOnce([])
+    await fetchSource({
+      type: 'git',
+      url: 'https://github.com/x/y.git',
+      ref: 'main',
+      paths: ['docs/**']
+    })
+    expect(fetchGit).toHaveBeenCalledWith(
+      'https://github.com/x/y.git',
+      'main',
+      ['docs/**']
+    )
   })
 
-  it('throws NotImplemented for rss sources (PAI-127 lands the fetcher)', async () => {
-    await expect(
-      fetchSource({ type: 'rss', url: 'https://x/feed.xml' })
-    ).rejects.toThrow(/rss.*not yet implemented.*PAI-127/)
+  it('forwards max-items when dispatching an rss source', async () => {
+    fetchRss.mockResolvedValueOnce([])
+    await fetchSource({
+      type: 'rss',
+      url: 'https://x/feed.xml',
+      'max-items': 5
+    })
+    expect(fetchRss).toHaveBeenCalledWith('https://x/feed.xml', 5)
+  })
+
+  it('passes undefined ref/paths/max-items through cleanly', async () => {
+    fetchGit.mockResolvedValueOnce([])
+    fetchRss.mockResolvedValueOnce([])
+    await fetchSource({ type: 'git', url: 'https://x/y.git' })
+    await fetchSource({ type: 'rss', url: 'https://x/feed' })
+    expect(fetchGit).toHaveBeenCalledWith(
+      'https://x/y.git',
+      undefined,
+      undefined
+    )
+    expect(fetchRss).toHaveBeenCalledWith('https://x/feed', undefined)
   })
 })
