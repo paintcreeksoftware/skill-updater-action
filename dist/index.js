@@ -1,6 +1,6 @@
 import * as os from 'os';
 import os__default from 'os';
-import * as crypto from 'crypto';
+import 'crypto';
 import * as fs from 'fs';
 import { promises } from 'fs';
 import 'path';
@@ -152,36 +152,6 @@ function escapeProperty(s) {
         .replace(/\n/g, '%0A')
         .replace(/:/g, '%3A')
         .replace(/,/g, '%2C');
-}
-
-// For internal use, subject to change.
-// We use any as a valid input type
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function issueFileCommand(command, message) {
-    const filePath = process.env[`GITHUB_${command}`];
-    if (!filePath) {
-        throw new Error(`Unable to find environment variable for file command ${command}`);
-    }
-    if (!fs.existsSync(filePath)) {
-        throw new Error(`Missing file at path: ${filePath}`);
-    }
-    fs.appendFileSync(filePath, `${toCommandValue(message)}${os.EOL}`, {
-        encoding: 'utf8'
-    });
-}
-function prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
-    const convertedValue = toCommandValue(value);
-    // These should realistically never happen, but just in case someone finds a
-    // way to exploit uuid generation let's not allow keys or values that contain
-    // the delimiter.
-    if (key.includes(delimiter)) {
-        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-    }
-    if (convertedValue.includes(delimiter)) {
-        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-    }
-    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
 }
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -28098,34 +28068,6 @@ var ExitCode;
      */
     ExitCode[ExitCode["Failure"] = 1] = "Failure";
 })(ExitCode || (ExitCode = {}));
-/**
- * Gets the value of an input.
- * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
- * Returns an empty string if the value is not defined.
- *
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @returns   string
- */
-function getInput(name, options) {
-    const val = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`] || '';
-    return val.trim();
-}
-/**
- * Sets the value of an output.
- *
- * @param     name     name of the output to set
- * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setOutput(name, value) {
-    const filePath = process.env['GITHUB_OUTPUT'] || '';
-    if (filePath) {
-        return issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
-    }
-    process.stdout.write(os.EOL);
-    issueCommand('set-output', { name }, toCommandValue(value));
-}
 //-----------------------------------------------------------------------
 // Results
 //-----------------------------------------------------------------------
@@ -28139,13 +28081,6 @@ function setFailed(message) {
     error(message);
 }
 /**
- * Writes debug message to user log
- * @param message debug message
- */
-function debug(message) {
-    issueCommand('debug', {}, message);
-}
-/**
  * Adds an error issue
  * @param message error issue message. Errors will be converted to string via toString()
  * @param properties optional properties to add to the annotation.
@@ -28155,41 +28090,22 @@ function error(message, properties = {}) {
 }
 
 /**
- * Waits for a number of milliseconds.
+ * Action entry point.
  *
- * @param milliseconds The number of milliseconds to wait.
- * @returns Resolves with 'done!' after the wait is over.
- */
-async function wait(milliseconds) {
-    return new Promise((resolve) => {
-        if (isNaN(milliseconds))
-            throw new Error('milliseconds is not a number');
-        setTimeout(() => resolve('done!'), milliseconds);
-    });
-}
-
-/**
- * The main function for the action.
+ * This is a stub. The real implementation lands incrementally across the
+ * remaining sub-issues of [PAI-122](https://linear.app/paint-creek-software/issue/PAI-122):
+ * PAI-124 wires the input schema and coverage gate, PAI-125 adds skill
+ * discovery, PAI-126/127 add the source fetchers, PAI-128 adds Claude
+ * synthesis, and PAI-129 wires the orchestrator + PR flow.
  *
- * @returns Resolves when the action is complete.
+ * Running the action before that chain merges fails fast with an explicit
+ * "not implemented" message rather than appearing to succeed silently.
+ *
+ * @returns Resolves once the action completes (always; failure is reported
+ * via `core.setFailed`, not by throwing).
  */
 async function run() {
-    try {
-        const ms = getInput('milliseconds');
-        // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-        debug(`Waiting ${ms} milliseconds ...`);
-        // Log the current timestamp, wait, then log the new timestamp
-        debug(new Date().toTimeString());
-        await wait(parseInt(ms, 10));
-        debug(new Date().toTimeString());
-        // Set outputs for other workflow steps to use
-        setOutput('time', new Date().toTimeString());
-    }
-    catch (error) {
-        // Fail the workflow run if an error occurs
-        if (error instanceof Error)
-            setFailed(error.message);
-    }
+    setFailed('skill-updater-action: not implemented yet. Track progress at https://linear.app/paint-creek-software/issue/PAI-122.');
 }
 
 /**
