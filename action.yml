@@ -8,9 +8,40 @@ branding:
   icon: refresh-cw
   color: blue
 
-# Inputs and outputs land in PAI-124 (input schema) and PAI-129 (orchestrator
-# wires the pr-url output). This stub deliberately exposes none — running the
-# action today fails fast with a "not implemented" message via setFailed.
+inputs:
+  sources:
+    description: |
+      Multi-line YAML map of skill name -> list of sources to pull for that
+      skill. Each source has a `type` of `web`, `git`, or `rss` and a `url`.
+      Skill names must match a discovered SKILL.md location in the repo.
+      See README for the full schema and a worked example.
+    required: true
+  anthropic-api-key:
+    description:
+      Anthropic API key for the synthesis call. Pass via the workflow's
+      `secrets.ANTHROPIC_API_KEY` expression.
+    required: true
+  github-token:
+    description: |
+      Fine-grained PAT or GitHub App installation token with `contents: write`
+      and `pull-requests: write` on the consumer repo. NOT the default
+      GITHUB_TOKEN — the action refuses to start if the input matches the
+      default token (PRs opened with it don't trigger workflows on the target
+      branch). See README for why.
+    required: true
+  model:
+    description: Anthropic model ID for synthesis. Defaults to claude-opus-4-7.
+    required: false
+    default: claude-opus-4-7
+  branch:
+    description:
+      Rolling branch the action force-pushes per-run. Defaults to
+      skill-updater/auto.
+    required: false
+    default: skill-updater/auto
+
+# Outputs land in PAI-129 (orchestrator wires pr-url). The current stub fails
+# fast via setFailed and produces no outputs.
 
 runs:
   using: node24

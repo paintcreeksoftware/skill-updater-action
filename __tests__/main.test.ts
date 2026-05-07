@@ -1,17 +1,18 @@
 /**
  * Unit tests for src/main.ts.
  *
- * The action body is currently a `core.setFailed` stub (see PAI-123). These
- * tests assert that the stub fails the workflow with the expected message;
- * they will be expanded as PAI-124 onward fills in the real behavior.
- *
- * Mocks follow the project pattern: declare with `jest.unstable_mockModule`
- * before the dynamic import of the module under test so the mock takes effect.
+ * `parseInputs` is mocked so these tests stay focused on main.ts's two
+ * branches — parser-error path vs. happy-path-then-not-implemented — without
+ * exercising the real schema validation (covered separately in
+ * __tests__/config/inputs.test.ts).
  */
 import { jest } from '@jest/globals'
 import * as core from '../__fixtures__/core.js'
 
+const parseInputs = jest.fn<() => void>()
+
 jest.unstable_mockModule('@actions/core', () => core)
+jest.unstable_mockModule('../src/config/inputs.js', () => ({ parseInputs }))
 
 const { run } = await import('../src/main.js')
 
@@ -20,7 +21,34 @@ describe('main.ts', () => {
     jest.resetAllMocks()
   })
 
-  it('fails the workflow with a not-implemented message pointing at the epic', async () => {
+  it('forwards parser errors to setFailed and stops', async () => {
+    parseInputs.mockImplementation(() => {
+      throw new Error('sources input failed schema validation: bad type')
+    })
+
+    await run()
+
+    expect(core.setFailed).toHaveBeenCalledTimes(1)
+    expect(core.setFailed).toHaveBeenCalledWith(
+      'sources input failed schema validation: bad type'
+    )
+  })
+
+  it('coerces non-Error throws to string before forwarding to setFailed', async () => {
+    parseInputs.mockImplementation(() => {
+      throw 'string thrown directly'
+    })
+
+    await run()
+
+    expect(core.setFailed).toHaveBeenCalledWith('string thrown directly')
+  })
+
+  it('reports the not-implemented sentinel when parsing succeeds', async () => {
+    parseInputs.mockImplementation(() => {
+      // happy path — parseInputs is silent on success
+    })
+
     await run()
 
     expect(core.setFailed).toHaveBeenCalledTimes(1)

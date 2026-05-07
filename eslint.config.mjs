@@ -49,6 +49,10 @@ export default [
           allowDefaultProject: [
             '__fixtures__/*.ts',
             '__tests__/*.ts',
+            // typescript-eslint disallows `**` in this list (perf concern), so
+            // each new test subdir gets its own glob entry as it lands. Adds
+            // for PAI-N tickets:
+            '__tests__/config/*.ts', // PAI-124
             'eslint.config.mjs',
             'jest.config.js',
             'rollup.config.ts'
