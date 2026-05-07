@@ -1,311 +1,158 @@
-# Create a GitHub Action Using TypeScript
+# Skill Updater Action
 
-![Linter](https://github.com/actions/typescript-action/actions/workflows/linter.yml/badge.svg)
-![CI](https://github.com/actions/typescript-action/actions/workflows/ci.yml/badge.svg)
-![Check dist/](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml/badge.svg)
-![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)
+![Linter](https://github.com/paintcreeksoftware/skill-updater-action/actions/workflows/linter.yml/badge.svg)
+![CI](https://github.com/paintcreeksoftware/skill-updater-action/actions/workflows/ci.yml/badge.svg)
+![Check dist/](https://github.com/paintcreeksoftware/skill-updater-action/actions/workflows/check-dist.yml/badge.svg)
+![CodeQL](https://github.com/paintcreeksoftware/skill-updater-action/actions/workflows/codeql-analysis.yml/badge.svg)
 ![Coverage](./badges/coverage.svg)
 
-Use this template to bootstrap the creation of a TypeScript action. :rocket:
+A GitHub Action that keeps the
+[Claude SKILL.md](https://docs.anthropic.com/en/docs/agents/skills) files in
+your skill repo fresh against upstream sources (web pages, public git repos, RSS
+feeds). On each run, the action:
 
-This template includes compilation support, tests, a validation workflow,
-publishing, and versioning guidance.
+1. Discovers every `SKILL.md` in the consumer repo (auto-detect — no manual
+   layout config).
+2. Fetches the configured upstream sources for each skill named in the workflow
+   input.
+3. Calls the [Claude API](https://docs.anthropic.com/en/api/) to synthesize
+   updated content from prior SKILL.md + the fresh sources, with prompt caching
+   wired so reruns and cross-skill calls are cheap.
+4. Writes the updated `SKILL.md` (and bumps a colocated `marketplace.json` patch
+   version, if present).
+5. Opens or updates a single rolling pull request with all changed skills + a
+   token-cost summary, and best-effort enables GitHub auto-merge.
 
-If you are new, there's also a simpler introduction in the
-[Hello world JavaScript action repository](https://github.com/actions/hello-world-javascript-action).
+**v1 updates existing skills only.** A `SKILL.md` must already exist in the repo
+for the action to find it. Bootstrapping new skills from sources alone is on the
+roadmap (see [PAI-122](https://linear.app/paint-creek-software/issue/PAI-122)).
 
-## Create Your Own Action
+## Quick example
 
-To create your own action, you can use this repository as a template! Just
-follow the below instructions:
-
-1. Click the **Use this template** button at the top of the repository
-1. Select **Create a new repository**
-1. Select an owner and name for your new repository
-1. Click **Create repository**
-1. Clone your new repository
-
-> [!IMPORTANT]
->
-> Make sure to remove or update the [`CODEOWNERS`](./CODEOWNERS) file! For
-> details on how to use this file, see
-> [About code owners](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).
-
-## Initial Setup
-
-After you've cloned the repository to your local machine or codespace, you'll
-need to perform some initial setup steps before you can develop your action.
-
-> [!NOTE]
->
-> You'll need to have a reasonably modern version of
-> [Node.js](https://nodejs.org) handy (20.x or later should work!). If you are
-> using a version manager like [`nodenv`](https://github.com/nodenv/nodenv) or
-> [`fnm`](https://github.com/Schniz/fnm), this template has a `.node-version`
-> file at the root of the repository that can be used to automatically switch to
-> the correct version when you `cd` into the repository. Additionally, this
-> `.node-version` file is used by GitHub Actions in any `actions/setup-node`
-> actions.
->
-> The package manager is [pnpm](https://pnpm.io), pinned via the
-> `packageManager` field in `package.json`. The simplest way to use the right
-> version is `corepack enable` (built into Node 20+) — the `pnpm` binary will
-> then bootstrap to the pinned version automatically when you run any `pnpm`
-> command in this directory.
-
-1. :hammer_and_wrench: Install the dependencies
-
-   ```bash
-   pnpm install
-   ```
-
-1. :building_construction: Package the TypeScript for distribution
-
-   ```bash
-   pnpm bundle
-   ```
-
-1. :white_check_mark: Run the tests
-
-   ```bash
-   $ pnpm test
-
-   PASS  ./index.test.js
-     ✓ throws invalid number (3ms)
-     ✓ wait 500 ms (504ms)
-     ✓ test runs (95ms)
-
-   ...
-   ```
-
-## Update the Action Metadata
-
-The [`action.yml`](action.yml) file defines metadata about your action, such as
-input(s) and output(s). For details about this file, see
-[Metadata syntax for GitHub Actions](https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions).
-
-When you copy this repository, update `action.yml` with the name, description,
-inputs, and outputs for your action.
-
-## Update the Action Code
-
-The [`src/`](./src/) directory is the heart of your action! This contains the
-source code that will be run when your action is invoked. You can replace the
-contents of this directory with your own code.
-
-There are a few things to keep in mind when writing your action code:
-
-- Most GitHub Actions toolkit and CI/CD operations are processed asynchronously.
-  In `main.ts`, you will see that the action is run in an `async` function.
-
-  ```javascript
-  import * as core from '@actions/core'
-  //...
-
-  async function run() {
-    try {
-      //...
-    } catch (error) {
-      core.setFailed(error.message)
-    }
-  }
-  ```
-
-  For more information about the GitHub Actions toolkit, see the
-  [documentation](https://github.com/actions/toolkit/blob/main/README.md).
-
-So, what are you waiting for? Go ahead and start customizing your action!
-
-1. Create a new branch
-
-   ```bash
-   git checkout -b releases/v1
-   ```
-
-1. Replace the contents of `src/` with your action code
-1. Add tests to `__tests__/` for your source code
-1. Format, test, and build the action
-
-   ```bash
-   pnpm all
-   ```
-
-   > This step is important! It will run [`rollup`](https://rollupjs.org/) to
-   > build the final JavaScript action code with all dependencies included. If
-   > you do not run this step, your action will not work correctly when it is
-   > used in a workflow.
-
-1. (Optional) Test your action locally
-
-   The [`@github/local-action`](https://github.com/github/local-action) utility
-   can be used to test your action locally. It is a simple command-line tool
-   that "stubs" (or simulates) the GitHub Actions Toolkit. This way, you can run
-   your TypeScript action locally without having to commit and push your changes
-   to a repository.
-
-   The `local-action` utility can be run in the following ways:
-   - Visual Studio Code Debugger
-
-     Make sure to review and, if needed, update
-     [`.vscode/launch.json`](./.vscode/launch.json)
-
-   - Terminal/Command Prompt
-
-     ```bash
-     # pnpm local-action <action-yaml-path> <entrypoint> <dotenv-file>
-     pnpm local-action . src/main.ts .env
-     ```
-
-   You can provide a `.env` file to the `local-action` CLI to set environment
-   variables used by the GitHub Actions Toolkit. For example, setting inputs and
-   event payload data used by your action. For more information, see the example
-   file, [`.env.example`](./.env.example), and the
-   [GitHub Actions Documentation](https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables).
-
-1. Commit your changes
-
-   ```bash
-   git add .
-   git commit -m "My first action is ready!"
-   ```
-
-1. Push them to your repository
-
-   ```bash
-   git push -u origin releases/v1
-   ```
-
-1. Create a pull request and get feedback on your action
-1. Merge the pull request into the `main` branch
-
-Your action is now published! :rocket:
-
-For information about versioning your action, see
-[Versioning](https://github.com/actions/toolkit/blob/main/docs/action-versioning.md)
-in the GitHub Actions toolkit.
-
-## Validate the Action
-
-You can now validate the action by referencing it in a workflow file. For
-example, [`ci.yml`](./.github/workflows/ci.yml) demonstrates how to reference an
-action in the same repository.
+`.github/workflows/skills.yml`:
 
 ```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
+name: Skill Updater
+on:
+  schedule:
+    - cron: '0 7 * * *' # nightly at 07:00 UTC
+  workflow_dispatch:
 
-  - name: Test Local Action
-    id: test-action
-    uses: ./
-    with:
-      milliseconds: 1000
+concurrency: skill-updater # never let two runs race the rolling branch
 
-  - name: Print Output
-    id: output
-    run: echo "${{ steps.test-action.outputs.time }}"
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: paintcreeksoftware/skill-updater-action@v1
+        with:
+          sources: |
+            drizzle-orm:
+              - type: web
+                url: https://orm.drizzle.team/docs/overview
+              - type: git
+                url: https://github.com/drizzle-team/drizzle-orm.git
+                ref: main
+                paths: ['changelogs/**/*.md']
+            linear-mcp:
+              - type: rss
+                url: https://linear.app/changelog/rss.xml
+                max-items: 10
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github-token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
 ```
 
-For example workflow runs, check out the
-[Actions tab](https://github.com/actions/typescript-action/actions)! :rocket:
+## Inputs
 
-## Usage
+| name                | required | default              | description                                                                                                                                                                           |
+| ------------------- | -------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sources`           | yes      | —                    | Multi-line YAML map of skill name → list of sources (see below). Names must match a discovered `SKILL.md` location in the repo.                                                       |
+| `anthropic-api-key` | yes      | —                    | Anthropic API key for synthesis.                                                                                                                                                      |
+| `github-token`      | yes      | —                    | Fine-grained PAT or GitHub App installation token. **Not** the default `GITHUB_TOKEN` (see next section).                                                                             |
+| `model`             | no       | `claude-opus-4-7`    | Claude model ID. Cost reporting prices `claude-opus-4-7`, `claude-sonnet-4-6`, and `claude-haiku-4-5-20251001`; unknown models still run but the cost column shows token counts only. |
+| `branch`            | no       | `skill-updater/auto` | The rolling branch the action force-pushes to.                                                                                                                                        |
 
-After testing, you can create version tag(s) that developers can use to
-reference different stable versions of your action. For more information, see
-[Versioning](https://github.com/actions/toolkit/blob/main/docs/action-versioning.md)
-in the GitHub Actions toolkit.
-
-To include the action in a workflow in another repository, you can use the
-`uses` syntax with the `@` symbol to reference a specific branch, tag, or commit
-hash.
+### `sources` schema
 
 ```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
-
-  - name: Test Local Action
-    id: test-action
-    uses: actions/typescript-action@v1 # Commit with the `v1` tag
-    with:
-      milliseconds: 1000
-
-  - name: Print Output
-    id: output
-    run: echo "${{ steps.test-action.outputs.time }}"
+sources: |
+  <skill-name>:
+    - type: web
+      url: https://...           # required
+    - type: git
+      url: https://...           # required
+      ref: <branch-or-tag>       # optional (defaults to repo default)
+      paths: ['glob/**']         # optional (defaults to ['README.md'])
+    - type: rss
+      url: https://.../feed.xml  # required
+      max-items: <integer>       # optional (defaults to 20)
 ```
 
-## Publishing a New Release
+A skill name in `sources` that doesn't match any discovered `SKILL.md` is a
+fail-fast error at startup — no fetches, no Claude calls. Skills discovered in
+the repo with no matching `sources` entry are silently skipped.
 
-This project includes a helper script, [`script/release`](./script/release)
-designed to streamline the process of tagging and pushing new releases for
-GitHub Actions.
+## Output
 
-GitHub Actions allows users to select a specific version of the action to use,
-based on release tags. This script simplifies this process by performing the
-following steps:
+| name     | description                                                                                                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pr-url` | HTTPS URL of the rolling PR. Empty string if no PR was created (nothing changed). Downstream workflow steps can branch on `pr-url == ''` to detect "nothing happened this run." |
 
-1. **Retrieving the latest release tag:** The script starts by fetching the most
-   recent SemVer release tag of the current branch, by looking at the local data
-   available in your repository.
-1. **Prompting for a new release tag:** The user is then prompted to enter a new
-   release tag. To assist with this, the script displays the tag retrieved in
-   the previous step, and validates the format of the inputted tag (vX.X.X). The
-   user is also reminded to update the version field in package.json.
-1. **Tagging the new release:** The script then tags a new release and syncs the
-   separate major tag (e.g. v1, v2) with the new release tag (e.g. v1.0.0,
-   v2.1.2). When the user is creating a new major release, the script
-   auto-detects this and creates a `releases/v#` branch for the previous major
-   version.
-1. **Pushing changes to remote:** Finally, the script pushes the necessary
-   commits, tags and branches to the remote repository. From here, you will need
-   to create a new release in GitHub so users can easily reference the new tags
-   in their workflows.
+The PR body lists every updated skill with its synthesis summary plus a
+`## Cost summary` section with total token usage and estimated cost.
 
-## Dependency License Management
+## Why the default `GITHUB_TOKEN` doesn't work
 
-This template includes a GitHub Actions workflow,
-[`licensed.yml`](./.github/workflows/licensed.yml), that uses
-[Licensed](https://github.com/licensee/licensed) to check for dependencies with
-missing or non-compliant licenses. This workflow is initially disabled. To
-enable the workflow, follow the below steps.
+A PR created with the default `GITHUB_TOKEN` does not trigger `pull_request` or
+`push` workflow runs on the target branch. This is a deliberate GitHub safeguard
+against recursive workflow triggers, but it has two consequences for this
+action:
 
-1. Open [`licensed.yml`](./.github/workflows/licensed.yml)
-1. Uncomment the following lines:
+1. Required status checks (CI) won't run on the PR, so reviewers can't see test
+   results before merging.
+2. GitHub auto-merge waits for required checks; with no checks running,
+   auto-merge blocks forever.
 
-   ```yaml
-   # pull_request:
-   #   branches:
-   #     - main
-   # push:
-   #   branches:
-   #     - main
-   ```
+A fine-grained PAT (or a GitHub App installation token) bypasses the safeguard.
+The PAT needs `contents: write` and `pull-requests: write` on the consumer repo.
+Store it as a repository secret named `GITHUB_PERSONAL_ACCESS_TOKEN` and pass it
+via `github-token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}`.
 
-1. Save and commit the changes
+The action will refuse to start if `github-token` is empty or matches the
+default `GITHUB_TOKEN` — fail-fast, no silent fallback.
 
-Once complete, this workflow will run any time a pull request is created or
-changes pushed directly to `main`. If the workflow detects any dependencies with
-missing or non-compliant licenses, it will fail the workflow and provide details
-on the issue(s) found.
+## What the action will and won't do (v1 scope)
 
-### Updating Licenses
+|     |                                                                                     |
+| --- | ----------------------------------------------------------------------------------- |
+| ✅  | Update existing SKILL.md files (and optional marketplace.json)                      |
+| ✅  | Open / update one rolling PR per run, best-effort enable auto-merge                 |
+| ✅  | Per-skill cost reporting in the PR body                                             |
+| ✅  | Preserve deprecated APIs as "what NOT to use" instructions per the synthesis prompt |
+| ❌  | Bootstrap brand-new skills (a SKILL.md must already exist) — see roadmap            |
+| ❌  | OpenClaw / custom output formats — out of scope for v1                              |
+| ❌  | Modify your repo's git config or write to `~/.gitconfig`                            |
 
-Whenever you install or update dependencies, you can use the Licensed CLI to
-update the licenses database. To install Licensed, see the project's
-[Readme](https://github.com/licensee/licensed?tab=readme-ov-file#installation).
-
-To update the cached licenses, run the following command:
+## Development
 
 ```bash
-licensed cache
+corepack enable               # bootstrap pnpm to the pinned packageManager version
+pnpm install
+pnpm bundle                   # format + rebuild dist/
+pnpm test                     # jest with coverage gate at 80%
+pnpm lint                     # eslint
 ```
 
-To check the status of cached licenses, run the following command:
+The action's runtime artifact is `dist/index.js` (rollup-bundled). Source under
+`src/`. See the open epic
+[PAI-122](https://linear.app/paint-creek-software/issue/PAI-122) for the v1
+implementation plan.
 
-```bash
-licensed status
-```
+## License
+
+MIT — see [LICENSE](./LICENSE).
