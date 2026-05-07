@@ -1,31 +1,38 @@
 import * as core from '@actions/core'
 import { parseInputs } from './config/inputs.js'
+import { discoverSkills } from './discovery/skills.js'
+import { findRepoRoot } from './git/workspace.js'
+import { formatError } from './util/logger.js'
 
 /**
- * Action entry point.
+ * Action entry point. PAI-129 lands the full pipeline incrementally:
  *
- * Currently runs only the input-parsing pass and then deliberately fails
- * with a "not implemented" message — the rest of the pipeline (discovery,
- * fetchers, synthesis, writer, PR flow) lands across the remaining sub-issues
- * of [PAI-122](https://linear.app/paint-creek-software/issue/PAI-122).
- *
- * Wiring `parseInputs()` here lets users with a real workflow exercise the
- * input schema end-to-end (and see the parser's error messages in their
- * Action log) before the rest of the chain merges. Bad inputs surface as the
- * parser's specific error; good inputs surface as the not-implemented
- * sentinel.
- *
- * @returns Resolves once the action completes (always; failure is reported
- * via `core.setFailed`, not by throwing).
+ * - this commit: parseInputs + discoverSkills + the cross-check that
+ *   every name in `sources` matches a discovered skill (fail-fast,
+ *   zero token spend)
+ * - next commit: per-skill fetch + synthesize + write loop
+ * - last commit: branch + commit + push + PR + best-effort auto-merge,
+ *   plus the cost-summary PR body and the no-op exit short-circuit
  */
 export async function run(): Promise<void> {
   try {
-    parseInputs()
+    const inputs = parseInputs()
+    const repoRoot = await findRepoRoot()
+    const discovered = await discoverSkills(repoRoot)
+    const byName = new Map(discovered.map((s) => [s.name, s]))
+
+    const missing = Object.keys(inputs.sources).filter((n) => !byName.has(n))
+    if (missing.length > 0) {
+      core.setFailed(
+        `sources references skill name(s) not found in repo: ${missing.join(', ')}. Discovered: ${discovered.map((s) => s.name).join(', ') || '(none)'}`
+      )
+      return
+    }
+
+    core.setFailed(
+      'skill-updater-action: pipeline not yet wired (PAI-129 in progress).'
+    )
   } catch (err) {
-    core.setFailed(err instanceof Error ? err.message : String(err))
-    return
+    core.setFailed(formatError('skill-updater-action failed', err))
   }
-  core.setFailed(
-    'skill-updater-action: not implemented yet. Track progress at https://linear.app/paint-creek-software/issue/PAI-122.'
-  )
 }

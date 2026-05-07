@@ -1,62 +1,62 @@
 /**
- * Unit tests for src/main.ts.
- *
- * `parseInputs` is mocked so these tests stay focused on main.ts's two
- * branches — parser-error path vs. happy-path-then-not-implemented — without
- * exercising the real schema validation (covered separately in
- * __tests__/config/inputs.test.ts).
+ * Tests for src/main.ts orchestrator scaffolding (PAI-129 step 1):
+ * parseInputs + discoverSkills + cross-check.
  */
-import { jest } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import * as core from '../__fixtures__/core.js'
+import type { ParsedInputs } from '../src/config/inputs.js'
+import type { DiscoveredSkill } from '../src/discovery/skills.js'
 
-const parseInputs = jest.fn<() => void>()
+const parseInputs = jest.fn<() => ParsedInputs>()
+const discoverSkills = jest.fn<(root: string) => Promise<DiscoveredSkill[]>>()
+const findRepoRoot = jest.fn<() => Promise<string>>()
 
 jest.unstable_mockModule('@actions/core', () => core)
 jest.unstable_mockModule('../src/config/inputs.js', () => ({ parseInputs }))
+jest.unstable_mockModule('../src/discovery/skills.js', () => ({
+  discoverSkills
+}))
+jest.unstable_mockModule('../src/git/workspace.js', () => ({ findRepoRoot }))
 
 const { run } = await import('../src/main.js')
 
-describe('main.ts', () => {
-  afterEach(() => {
-    jest.resetAllMocks()
-  })
+const validInputs: ParsedInputs = {
+  sources: { foo: [{ type: 'web', url: 'https://x' }] },
+  anthropicApiKey: 'sk',
+  githubToken: 'gh',
+  model: 'claude-opus-4-7',
+  branch: 'skill-updater/auto'
+}
 
-  it('forwards parser errors to setFailed and stops', async () => {
-    parseInputs.mockImplementation(() => {
-      throw new Error('sources input failed schema validation: bad type')
-    })
+beforeEach(() => {
+  jest.resetAllMocks()
+  findRepoRoot.mockResolvedValue('/repo')
+})
+
+describe('main.ts (orchestrator scaffolding)', () => {
+  it('fails the run when sources references an undiscovered skill', async () => {
+    parseInputs.mockReturnValue(validInputs)
+    discoverSkills.mockResolvedValue([])
 
     await run()
 
-    expect(core.setFailed).toHaveBeenCalledTimes(1)
     expect(core.setFailed).toHaveBeenCalledWith(
-      'sources input failed schema validation: bad type'
+      expect.stringContaining(
+        'sources references skill name(s) not found in repo: foo'
+      )
     )
   })
 
-  it('coerces non-Error throws to string before forwarding to setFailed', async () => {
-    parseInputs.mockImplementation(() => {
-      throw 'string thrown directly'
-    })
+  it('falls through to the pipeline-stub failure once cross-check passes', async () => {
+    parseInputs.mockReturnValue(validInputs)
+    discoverSkills.mockResolvedValue([
+      { name: 'foo', dir: '/repo', skillMdPath: '/repo/SKILL.md' }
+    ])
 
     await run()
 
-    expect(core.setFailed).toHaveBeenCalledWith('string thrown directly')
-  })
-
-  it('reports the not-implemented sentinel when parsing succeeds', async () => {
-    parseInputs.mockImplementation(() => {
-      // happy path — parseInputs is silent on success
-    })
-
-    await run()
-
-    expect(core.setFailed).toHaveBeenCalledTimes(1)
     expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining('skill-updater-action: not implemented yet')
-    )
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining('PAI-122')
+      expect.stringContaining('pipeline not yet wired')
     )
   })
 })
