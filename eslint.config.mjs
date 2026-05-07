@@ -54,6 +54,7 @@ export default [
             // for PAI-N tickets:
             '__tests__/config/*.ts', // PAI-124
             '__tests__/discovery/*.ts', // PAI-125
+            '__tests__/sources/*.ts', // PAI-126
             'eslint.config.mjs',
             'jest.config.js',
             'rollup.config.ts'
