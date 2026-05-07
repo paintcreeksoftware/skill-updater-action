@@ -21,10 +21,16 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-async function makeSkill(): Promise<DiscoveredSkill> {
+async function makeSkill(
+  withMarketplace?: Record<string, unknown>
+): Promise<DiscoveredSkill> {
   const skillMdPath = path.join(dir, 'SKILL.md')
   await writeFile(skillMdPath, '# old')
-  return { name: 'x', dir, skillMdPath }
+  const skill: DiscoveredSkill = { name: 'x', dir, skillMdPath }
+  if (withMarketplace === undefined) return skill
+  const marketplaceJsonPath = path.join(dir, 'marketplace.json')
+  await writeFile(marketplaceJsonPath, JSON.stringify(withMarketplace, null, 2))
+  return { ...skill, marketplaceJsonPath }
 }
 
 describe('writeSkill (SKILL.md)', () => {
@@ -51,5 +57,37 @@ describe('writeSkill (SKILL.md)', () => {
     })
     expect(out.changed).toBe(false)
     expect(out.changedFiles).toEqual([])
+  })
+})
+
+describe('writeSkill (marketplace.json)', () => {
+  it('bumps patch version and merges allow-listed fields', async () => {
+    const skill = await makeSkill({
+      name: 'x',
+      version: '1.2.3',
+      description: 'old desc'
+    })
+    await writeSkill(skill, {
+      skillMd: '# new',
+      marketplaceJson: { description: 'new desc', name: 'IGNORED' },
+      summary: 's',
+      usage
+    })
+    const mp = JSON.parse(await readFile(skill.marketplaceJsonPath!, 'utf8'))
+    expect(mp.version).toBe('1.2.4') // patch bumped
+    expect(mp.description).toBe('new desc') // allow-listed
+    expect(mp.name).toBe('x') // writer-managed; model can't override
+  })
+
+  it('falls back to 0.0.1 when existing version is malformed', async () => {
+    const skill = await makeSkill({ name: 'x', version: 'not-semver' })
+    await writeSkill(skill, {
+      skillMd: '# new',
+      marketplaceJson: null,
+      summary: 's',
+      usage
+    })
+    const mp = JSON.parse(await readFile(skill.marketplaceJsonPath!, 'utf8'))
+    expect(mp.version).toBe('0.0.1')
   })
 })
