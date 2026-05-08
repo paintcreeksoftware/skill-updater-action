@@ -29,8 +29,7 @@ export interface PromptInput {
 
 const SYNTHESIS_INSTRUCTION = `Produce updated SKILL.md content based on the prior skill (if any) and
 the fetched documents above. Apply every invariant in the system prompt —
-especially the deprecation-preservation rule. Respond with the JSON
-envelope as specified.`
+especially the deprecation-preservation rule.`
 
 /**
  * Build the `messages.create` parameters for one per-skill synthesis call.

@@ -23,10 +23,32 @@ export interface SynthesisResult {
   readonly usage: Anthropic.Usage
 }
 
+const ENVELOPE_TOOL_NAME = 'emit_skill_envelope' as const
+
 /**
- * Run one per-skill synthesis: build the prompt, call the model, extract
- * the text response, parse the JSON envelope, return it alongside the
- * usage record. Errors from any step bubble up unwrapped.
+ * Tool spec the model is forced to call via `tool_choice`. The
+ * `input_schema` enforces the envelope shape on Anthropic's side, so
+ * the SDK delivers a typed `input` object via a `tool_use` block —
+ * no fenced-JSON text parsing required (the v0.1.0 nested-fence bug).
+ */
+const ENVELOPE_TOOL = {
+  name: ENVELOPE_TOOL_NAME,
+  description: 'Emit the synthesized SKILL.md envelope.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      skillMd: { type: 'string' },
+      marketplaceJson: { type: ['object', 'null'] },
+      summary: { type: 'string' }
+    },
+    required: ['skillMd', 'summary']
+  }
+} as const satisfies Anthropic.Tool
+
+/**
+ * Run one per-skill synthesis: build the prompt, call the model with
+ * `tool_choice` pinned to `emit_skill_envelope`, return the envelope
+ * alongside the usage record. Errors bubble up unwrapped.
  */
 export async function synthesize(
   input: SynthesisInput
@@ -39,56 +61,27 @@ export async function synthesize(
   const response = await callClaude({
     ...prompt,
     apiKey: input.apiKey,
-    model: input.model
+    model: input.model,
+    tools: [ENVELOPE_TOOL],
+    tool_choice: { type: 'tool', name: ENVELOPE_TOOL_NAME }
   })
-  const envelope = parseEnvelope(extractText(response))
-  return { ...envelope, usage: response.usage }
-}
-
-/** Concatenate the response's text blocks; ignore non-text blocks. */
-function extractText(response: Anthropic.Message): string {
-  return response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim()
-}
-
-const FENCED_JSON_RE = /```(?:json)?\s*\n?([\s\S]*?)\n?```/
-
-/** Strip an optional ```json ... ``` fence and JSON.parse the envelope. */
-function parseEnvelope(text: string): {
-  skillMd: string
-  marketplaceJson: Record<string, unknown> | null
-  summary: string
-} {
-  if (text.length === 0) throw new Error('synthesis response was empty')
-  const match = text.match(FENCED_JSON_RE)
-  const json = match !== null ? match[1] : text
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(json)
-  } catch (err) {
-    throw new Error(
-      `synthesis response is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
-      { cause: err }
-    )
-  }
-  const obj = parsed as Record<string, unknown> | null
-  if (
-    obj === null ||
-    typeof obj.skillMd !== 'string' ||
-    typeof obj.summary !== 'string'
+  const toolUse = response.content.find(
+    (b): b is Anthropic.ToolUseBlock =>
+      b.type === 'tool_use' && b.name === ENVELOPE_TOOL_NAME
   )
+  if (toolUse === undefined)
     throw new Error(
-      'synthesis envelope missing required fields (skillMd, summary)'
+      `synthesis response missing ${ENVELOPE_TOOL_NAME} tool_use block`
     )
+  const e = toolUse.input as {
+    skillMd: string
+    marketplaceJson?: Record<string, unknown> | null
+    summary: string
+  }
   return {
-    skillMd: obj.skillMd,
-    marketplaceJson: (obj.marketplaceJson ?? null) as Record<
-      string,
-      unknown
-    > | null,
-    summary: obj.summary
+    skillMd: e.skillMd,
+    marketplaceJson: e.marketplaceJson ?? null,
+    summary: e.summary,
+    usage: response.usage
   }
 }

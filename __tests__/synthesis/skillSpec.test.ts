@@ -26,11 +26,12 @@ describe('skillSpec', () => {
     expect(DEPRECATION_PRESERVATION_RULE).toMatch(/z\.uuid\(\)/)
   })
 
-  it('system prompt embeds both blocks and instructs the JSON envelope output', () => {
+  it('system prompt embeds both blocks and no longer prescribes a JSON envelope shape', () => {
     expect(SYSTEM_PROMPT).toContain(SKILL_FORMAT_SPEC)
     expect(SYSTEM_PROMPT).toContain(DEPRECATION_PRESERVATION_RULE)
-    expect(SYSTEM_PROMPT).toMatch(/"skillMd"/)
-    expect(SYSTEM_PROMPT).toMatch(/"marketplaceJson"/)
-    expect(SYSTEM_PROMPT).toMatch(/"summary"/)
+    // Output shape now lives in the emit_skill_envelope tool's
+    // input_schema (synthesize.ts) — not in the prompt text.
+    expect(SYSTEM_PROMPT).not.toMatch(/JSON envelope/i)
+    expect(SYSTEM_PROMPT).not.toMatch(/```json/)
   })
 })

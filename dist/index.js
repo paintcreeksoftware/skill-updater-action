@@ -83404,7 +83404,9 @@ async function callClaude(input) {
         model: input.model,
         max_tokens: DEFAULT_MAX_TOKENS,
         system: input.system,
-        messages: input.messages
+        messages: input.messages,
+        tools: input.tools,
+        tool_choice: input.tool_choice
     });
 }
 
@@ -83463,6 +83465,11 @@ in the version the skill is targeting.`;
  * Full system prompt: role + invariants + format spec + deprecation rule.
  * This is the largest cacheable block in the synthesis call and is
  * identical across every per-skill invocation in a given run.
+ *
+ * Output shape lives in the `emit_skill_envelope` tool's `input_schema`
+ * (see synthesize.ts) — the prompt itself does not prescribe a JSON
+ * envelope, since asking the model for fenced JSON around payloads
+ * that already contain code fences was the v0.1.0 bug.
  */
 const SYSTEM_PROMPT = `You synthesize and update Claude SKILL.md files from upstream source
 documents. The user will give you a skill's prior content (if any) and a
@@ -83470,22 +83477,11 @@ fresh batch of fetched documents; produce updated content.
 
 ${SKILL_FORMAT_SPEC}
 
-${DEPRECATION_PRESERVATION_RULE}
-
-Always respond with a single JSON envelope (no surrounding prose):
-
-\`\`\`json
-{
-  "skillMd": "<the full updated SKILL.md as a string>",
-  "marketplaceJson": <updated marketplace.json fields as an object, or null>,
-  "summary": "<one short sentence describing what changed in this update>"
-}
-\`\`\``;
+${DEPRECATION_PRESERVATION_RULE}`;
 
 const SYNTHESIS_INSTRUCTION = `Produce updated SKILL.md content based on the prior skill (if any) and
 the fetched documents above. Apply every invariant in the system prompt —
-especially the deprecation-preservation rule. Respond with the JSON
-envelope as specified.`;
+especially the deprecation-preservation rule.`;
 /**
  * Build the `messages.create` parameters for one per-skill synthesis call.
  * Wires three `cache_control: { type: 'ephemeral' }` breakpoints
@@ -83535,10 +83531,30 @@ function formatFetchedDocs(docs) {
         .join('\n\n');
 }
 
+const ENVELOPE_TOOL_NAME = 'emit_skill_envelope';
 /**
- * Run one per-skill synthesis: build the prompt, call the model, extract
- * the text response, parse the JSON envelope, return it alongside the
- * usage record. Errors from any step bubble up unwrapped.
+ * Tool spec the model is forced to call via `tool_choice`. The
+ * `input_schema` enforces the envelope shape on Anthropic's side, so
+ * the SDK delivers a typed `input` object via a `tool_use` block —
+ * no fenced-JSON text parsing required (the v0.1.0 nested-fence bug).
+ */
+const ENVELOPE_TOOL = {
+    name: ENVELOPE_TOOL_NAME,
+    description: 'Emit the synthesized SKILL.md envelope.',
+    input_schema: {
+        type: 'object',
+        properties: {
+            skillMd: { type: 'string' },
+            marketplaceJson: { type: ['object', 'null'] },
+            summary: { type: 'string' }
+        },
+        required: ['skillMd', 'summary']
+    }
+};
+/**
+ * Run one per-skill synthesis: build the prompt, call the model with
+ * `tool_choice` pinned to `emit_skill_envelope`, return the envelope
+ * alongside the usage record. Errors bubble up unwrapped.
  */
 async function synthesize(input) {
     const prompt = buildPrompt({
@@ -83549,42 +83565,19 @@ async function synthesize(input) {
     const response = await callClaude({
         ...prompt,
         apiKey: input.apiKey,
-        model: input.model
+        model: input.model,
+        tools: [ENVELOPE_TOOL],
+        tool_choice: { type: 'tool', name: ENVELOPE_TOOL_NAME }
     });
-    const envelope = parseEnvelope(extractText(response));
-    return { ...envelope, usage: response.usage };
-}
-/** Concatenate the response's text blocks; ignore non-text blocks. */
-function extractText(response) {
-    return response.content
-        .filter((b) => b.type === 'text')
-        .map((b) => b.text)
-        .join('')
-        .trim();
-}
-const FENCED_JSON_RE = /```(?:json)?\s*\n?([\s\S]*?)\n?```/;
-/** Strip an optional ```json ... ``` fence and JSON.parse the envelope. */
-function parseEnvelope(text) {
-    if (text.length === 0)
-        throw new Error('synthesis response was empty');
-    const match = text.match(FENCED_JSON_RE);
-    const json = match !== null ? match[1] : text;
-    let parsed;
-    try {
-        parsed = JSON.parse(json);
-    }
-    catch (err) {
-        throw new Error(`synthesis response is not valid JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
-    }
-    const obj = parsed;
-    if (obj === null ||
-        typeof obj.skillMd !== 'string' ||
-        typeof obj.summary !== 'string')
-        throw new Error('synthesis envelope missing required fields (skillMd, summary)');
+    const toolUse = response.content.find((b) => b.type === 'tool_use' && b.name === ENVELOPE_TOOL_NAME);
+    if (toolUse === undefined)
+        throw new Error(`synthesis response missing ${ENVELOPE_TOOL_NAME} tool_use block`);
+    const e = toolUse.input;
     return {
-        skillMd: obj.skillMd,
-        marketplaceJson: (obj.marketplaceJson ?? null),
-        summary: obj.summary
+        skillMd: e.skillMd,
+        marketplaceJson: e.marketplaceJson ?? null,
+        summary: e.summary,
+        usage: response.usage
     };
 }
 
