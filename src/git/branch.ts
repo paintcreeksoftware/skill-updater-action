@@ -21,5 +21,15 @@ export async function resetRollingBranch(
   cwd: string
 ): Promise<void> {
   await exec('git', ['fetch', 'origin', base], { cwd })
+  // Best-effort fetch of the rolling branch so commit.ts's
+  // `git push --force-with-lease` has an accurate remote-tracking ref to
+  // compare against. On the first run the branch doesn't exist remotely
+  // yet — that fetch fails non-zero and we proceed; on subsequent runs
+  // the fetch populates refs/remotes/origin/<branch> and the lease
+  // check succeeds instead of rejecting our own push as "stale info."
+  await exec('git', ['fetch', 'origin', branch], {
+    cwd,
+    ignoreReturnCode: true
+  })
   await exec('git', ['checkout', '-B', branch, `origin/${base}`], { cwd })
 }
