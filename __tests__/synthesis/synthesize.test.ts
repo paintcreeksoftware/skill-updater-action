@@ -29,12 +29,18 @@ beforeEach(() => {
 })
 
 describe('synthesize (happy path)', () => {
-  it('parses a fenced JSON envelope and returns it with usage', async () => {
+  it('reads the emit_skill_envelope tool_use block and returns it with usage', async () => {
     callClaude.mockResolvedValueOnce({
       content: [
         {
-          type: 'text',
-          text: '```json\n{"skillMd":"# new","marketplaceJson":{"version":"1.0.1"},"summary":"bumped"}\n```'
+          type: 'tool_use',
+          id: 'toolu_test',
+          name: 'emit_skill_envelope',
+          input: {
+            skillMd: '# new',
+            marketplaceJson: { version: '1.0.1' },
+            summary: 'bumped'
+          }
         }
       ],
       usage
@@ -48,66 +54,32 @@ describe('synthesize (happy path)', () => {
     expect(result.usage).toEqual(usage)
   })
 
-  it('parses an unfenced JSON envelope', async () => {
-    callClaude.mockResolvedValueOnce({
-      content: [
-        {
-          type: 'text',
-          text: '{"skillMd":"# bare","marketplaceJson":null,"summary":"ok"}'
-        }
-      ],
-      usage
-    } as unknown as Awaited<ReturnType<typeof CallClaude>>)
-
-    const result = await synthesize(baseInput)
-    expect(result.skillMd).toBe('# bare')
-    expect(result.marketplaceJson).toBeNull()
-  })
-
-  it('reads emit_skill_envelope tool_use block when present', async () => {
+  it('coerces a missing marketplaceJson on the tool input to null', async () => {
     callClaude.mockResolvedValueOnce({
       content: [
         {
           type: 'tool_use',
           id: 'toolu_test',
           name: 'emit_skill_envelope',
-          input: { skillMd: '# tool', summary: 'via tool_use' }
+          input: { skillMd: '# bare', summary: 'ok' }
         }
       ],
       usage
     } as unknown as Awaited<ReturnType<typeof CallClaude>>)
 
     const result = await synthesize(baseInput)
-    expect(result.skillMd).toBe('# tool')
     expect(result.marketplaceJson).toBeNull()
-    expect(result.summary).toBe('via tool_use')
   })
 })
 
 describe('synthesize (failure modes)', () => {
-  it('throws on empty response content', async () => {
+  it('throws when no emit_skill_envelope tool_use block is present', async () => {
     callClaude.mockResolvedValueOnce({
-      content: [],
-      usage
-    } as unknown as Awaited<ReturnType<typeof CallClaude>>)
-    await expect(synthesize(baseInput)).rejects.toThrow(/response was empty/)
-  })
-
-  it('throws on malformed JSON in the envelope', async () => {
-    callClaude.mockResolvedValueOnce({
-      content: [{ type: 'text', text: '```json\nnot { valid json\n```' }],
-      usage
-    } as unknown as Awaited<ReturnType<typeof CallClaude>>)
-    await expect(synthesize(baseInput)).rejects.toThrow(/not valid JSON/)
-  })
-
-  it('throws when envelope is missing required skillMd / summary fields', async () => {
-    callClaude.mockResolvedValueOnce({
-      content: [{ type: 'text', text: '{"summary": "no skillMd here"}' }],
+      content: [{ type: 'text', text: 'i forgot the tool' }],
       usage
     } as unknown as Awaited<ReturnType<typeof CallClaude>>)
     await expect(synthesize(baseInput)).rejects.toThrow(
-      /missing required fields/
+      /missing emit_skill_envelope tool_use block/
     )
   })
 

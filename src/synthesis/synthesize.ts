@@ -69,67 +69,19 @@ export async function synthesize(
     (b): b is Anthropic.ToolUseBlock =>
       b.type === 'tool_use' && b.name === ENVELOPE_TOOL_NAME
   )
-  if (toolUse !== undefined) {
-    const e = toolUse.input as {
-      skillMd: string
-      marketplaceJson?: Record<string, unknown> | null
-      summary: string
-    }
-    return {
-      skillMd: e.skillMd,
-      marketplaceJson: e.marketplaceJson ?? null,
-      summary: e.summary,
-      usage: response.usage
-    }
-  }
-  const envelope = parseEnvelope(extractText(response))
-  return { ...envelope, usage: response.usage }
-}
-
-/** Concatenate the response's text blocks; ignore non-text blocks. */
-function extractText(response: Anthropic.Message): string {
-  return response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim()
-}
-
-const FENCED_JSON_RE = /```(?:json)?\s*\n?([\s\S]*?)\n?```/
-
-/** Strip an optional ```json ... ``` fence and JSON.parse the envelope. */
-function parseEnvelope(text: string): {
-  skillMd: string
-  marketplaceJson: Record<string, unknown> | null
-  summary: string
-} {
-  if (text.length === 0) throw new Error('synthesis response was empty')
-  const match = text.match(FENCED_JSON_RE)
-  const json = match !== null ? match[1] : text
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(json)
-  } catch (err) {
+  if (toolUse === undefined)
     throw new Error(
-      `synthesis response is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
-      { cause: err }
+      `synthesis response missing ${ENVELOPE_TOOL_NAME} tool_use block`
     )
+  const e = toolUse.input as {
+    skillMd: string
+    marketplaceJson?: Record<string, unknown> | null
+    summary: string
   }
-  const obj = parsed as Record<string, unknown> | null
-  if (
-    obj === null ||
-    typeof obj.skillMd !== 'string' ||
-    typeof obj.summary !== 'string'
-  )
-    throw new Error(
-      'synthesis envelope missing required fields (skillMd, summary)'
-    )
   return {
-    skillMd: obj.skillMd,
-    marketplaceJson: (obj.marketplaceJson ?? null) as Record<
-      string,
-      unknown
-    > | null,
-    summary: obj.summary
+    skillMd: e.skillMd,
+    marketplaceJson: e.marketplaceJson ?? null,
+    summary: e.summary,
+    usage: response.usage
   }
 }
