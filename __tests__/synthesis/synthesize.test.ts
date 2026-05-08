@@ -70,6 +70,50 @@ describe('synthesize (happy path)', () => {
     const result = await synthesize(baseInput)
     expect(result.marketplaceJson).toBeNull()
   })
+
+  // Regression: v0.1.0 asked the model for a fenced-JSON envelope and
+  // regex-stripped the response. When skillMd contained ```ts``` (or any
+  // other) fences, the permissive regex captured the inner fence as the
+  // JSON body and JSON.parse failed on `Unexpected token 's', "ts\nexport "...`.
+  // Routing the envelope through tool_use makes this structurally
+  // impossible: skillMd is a string field on a typed `input` object and
+  // never round-trips through text. This test pins that property — if
+  // anyone reintroduces text parsing in synthesize(), it fires.
+  it('preserves nested code fences inside skillMd verbatim (regression: v0.1.0 nested-fence parse failure)', async () => {
+    const skillMdWithFences = [
+      '# Lint Skill',
+      '',
+      '## Example',
+      '',
+      '```ts',
+      "export const x: string = 'hello'",
+      'export function y(): void { return }',
+      '```',
+      '',
+      '## Config',
+      '',
+      '```json',
+      '{ "extends": ["@org/eslint-config"] }',
+      '```',
+      ''
+    ].join('\n')
+
+    callClaude.mockResolvedValueOnce({
+      content: [
+        {
+          type: 'tool_use',
+          id: 'toolu_test',
+          name: 'emit_skill_envelope',
+          input: { skillMd: skillMdWithFences, summary: 'fences ok' }
+        }
+      ],
+      usage
+    } as unknown as Awaited<ReturnType<typeof CallClaude>>)
+
+    const result = await synthesize(baseInput)
+    expect(result.skillMd).toBe(skillMdWithFences)
+    expect(result.summary).toBe('fences ok')
+  })
 })
 
 describe('synthesize (failure modes)', () => {
