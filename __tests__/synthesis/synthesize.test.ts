@@ -63,6 +63,25 @@ describe('synthesize (happy path)', () => {
     expect(result.skillMd).toBe('# bare')
     expect(result.marketplaceJson).toBeNull()
   })
+
+  it('reads emit_skill_envelope tool_use block when present', async () => {
+    callClaude.mockResolvedValueOnce({
+      content: [
+        {
+          type: 'tool_use',
+          id: 'toolu_test',
+          name: 'emit_skill_envelope',
+          input: { skillMd: '# tool', summary: 'via tool_use' }
+        }
+      ],
+      usage
+    } as unknown as Awaited<ReturnType<typeof CallClaude>>)
+
+    const result = await synthesize(baseInput)
+    expect(result.skillMd).toBe('# tool')
+    expect(result.marketplaceJson).toBeNull()
+    expect(result.summary).toBe('via tool_use')
+  })
 })
 
 describe('synthesize (failure modes)', () => {
