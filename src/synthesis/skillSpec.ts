@@ -56,6 +56,11 @@ in the version the skill is targeting.`
  * Full system prompt: role + invariants + format spec + deprecation rule.
  * This is the largest cacheable block in the synthesis call and is
  * identical across every per-skill invocation in a given run.
+ *
+ * Output shape lives in the `emit_skill_envelope` tool's `input_schema`
+ * (see synthesize.ts) — the prompt itself does not prescribe a JSON
+ * envelope, since asking the model for fenced JSON around payloads
+ * that already contain code fences was the v0.1.0 bug.
  */
 export const SYSTEM_PROMPT = `You synthesize and update Claude SKILL.md files from upstream source
 documents. The user will give you a skill's prior content (if any) and a
@@ -63,14 +68,4 @@ fresh batch of fetched documents; produce updated content.
 
 ${SKILL_FORMAT_SPEC}
 
-${DEPRECATION_PRESERVATION_RULE}
-
-Always respond with a single JSON envelope (no surrounding prose):
-
-\`\`\`json
-{
-  "skillMd": "<the full updated SKILL.md as a string>",
-  "marketplaceJson": <updated marketplace.json fields as an object, or null>,
-  "summary": "<one short sentence describing what changed in this update>"
-}
-\`\`\``
+${DEPRECATION_PRESERVATION_RULE}`
