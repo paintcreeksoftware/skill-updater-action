@@ -17,6 +17,18 @@ export interface ClientCallInput extends BuiltPrompt {
   readonly apiKey: string
   /** Model ID — defaults to claude-opus-4-7 in the parser. */
   readonly model: string
+  /**
+   * Optional tool definitions forwarded to `messages.create`. Synthesis
+   * uses this to constrain the model's output via tool_use rather than
+   * fenced JSON in text.
+   */
+  readonly tools?: Anthropic.MessageCreateParams['tools']
+  /**
+   * Optional `tool_choice` directive forwarded to `messages.create`.
+   * Synthesis pins this to `{ type: 'tool', name: '...' }` so the
+   * model is required to emit the structured envelope.
+   */
+  readonly tool_choice?: Anthropic.MessageCreateParams['tool_choice']
 }
 
 /** Pass-through of the SDK's response shape. */
@@ -36,6 +48,8 @@ export async function callClaude(
     model: input.model,
     max_tokens: DEFAULT_MAX_TOKENS,
     system: input.system,
-    messages: input.messages
+    messages: input.messages,
+    tools: input.tools,
+    tool_choice: input.tool_choice
   })
 }
